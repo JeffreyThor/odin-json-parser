@@ -5,12 +5,11 @@ import "core:os"
 import "json_parser"
 
 main :: proc() {
-    if data, ok := os.read_entire_file("input.json"); ok {
-        scanner := json_parser.init_scanner(string(data))
-        tokens := json_parser.scan(&scanner)
-
-        for token in tokens {
-            fmt.printfln("Token: Type=%d, Value=%s", token.type, token.value)
-        }
+    data, ok := os.read_entire_file("input.json")
+    if !ok {
+        panic("Failed to read input file")
     }
+
+    json := json_parser.parse(string(data))
+    fmt.println(json)
 }

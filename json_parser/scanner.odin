@@ -1,15 +1,14 @@
 package json_parser
 
-import "core:strings"
 import "core:fmt"
 import "core:unicode/utf8"
 import "core:unicode"
 
 Token_Type :: enum {
-    Left_Bracket,
-    Right_Bracket,
     Left_Brace,
     Right_Brace,
+    Left_Bracket,
+    Right_Bracket,
     Colon,
     Comma,
     String,
@@ -20,16 +19,9 @@ Token_Type :: enum {
     End,
 }
 
-Token_Value :: union {
-    string,
-    int,
-    f32,
-    bool
-}
-
 Token :: struct {
     type: Token_Type,
-    value: Token_Value,
+    value: string,
 }
 
 Scanner :: struct {
@@ -60,6 +52,7 @@ scan :: proc(scanner: ^Scanner) -> [dynamic]Token {
     return scanner.tokens
 }
 
+@(private="file")
 is_at_end :: proc(scanner: ^Scanner) -> bool {
     return scanner.current >= len(scanner.source)
 }
@@ -67,57 +60,58 @@ is_at_end :: proc(scanner: ^Scanner) -> bool {
 scan_token :: proc(scanner: ^Scanner) {
     c := advance(scanner)
     switch c {
-        case '{':
-            append(&scanner.tokens, Token {
-                type = .Left_Bracket,
-                value = "{"
-            })
-        case '}':
-            append(&scanner.tokens, Token {
-                type = .Right_Bracket,
-                value = "}",
-            })
-        case '[':
-            append(&scanner.tokens, Token {
-                type = .Left_Brace,
-                value = "[",
-            })
-        case ']':
-            append(&scanner.tokens, Token {
-                type = .Right_Brace,
-                value = "]",
-            })
-        case ',':
-            append(&scanner.tokens, Token {
-                type = .Comma,
-                value = ",",
-            })
-        case ':':
-            append(&scanner.tokens, Token {
-                type = .Colon,
-                value = ":",
-            })
-        case '\n':
-            scanner.line += 1
-        case ' ': // Do nothing on whitespace
-        case '"':
-            add_string(scanner)
-        case '-':
-            if unicode.is_digit(peek(scanner)) {
-                advance(scanner)
-                add_number(scanner)
-            }
-        case:
-            if unicode.is_digit(c) {
-                add_number(scanner)
-            } else if unicode.is_alpha(c) {
-                add_keyword(scanner)
-            } else {
-                fmt.println("Unexpected Token")
-            }
+    case '{':
+        append(&scanner.tokens, Token {
+            type = .Left_Brace,
+            value = "{"
+        })
+    case '}':
+        append(&scanner.tokens, Token {
+            type = .Right_Brace,
+            value = "}",
+        })
+    case '[':
+        append(&scanner.tokens, Token {
+            type = .Left_Bracket,
+            value = "[",
+        })
+    case ']':
+        append(&scanner.tokens, Token {
+            type = .Right_Bracket,
+            value = "]",
+        })
+    case ',':
+        append(&scanner.tokens, Token {
+            type = .Comma,
+            value = ",",
+        })
+    case ':':
+        append(&scanner.tokens, Token {
+            type = .Colon,
+            value = ":",
+        })
+    case '\n':
+        scanner.line += 1
+    case ' ': // Do nothing on whitespace
+    case '"':
+        add_string(scanner)
+    case '-':
+        if unicode.is_digit(peek(scanner)) {
+            advance(scanner)
+            add_number(scanner)
+        }
+    case:
+        if unicode.is_digit(c) {
+            add_number(scanner)
+        } else if unicode.is_alpha(c) {
+            add_keyword(scanner)
+        } else {
+            fmt.println("Unexpected Token")
+        }
     }
 }
 
+@(private="file")
 advance :: proc(scanner: ^Scanner) -> rune {
     // This is weird but this is the only way I know how to get the full rune from just an index
     for r in scanner.source[scanner.current:] {
@@ -125,9 +119,10 @@ advance :: proc(scanner: ^Scanner) -> rune {
         return r
     }
     fmt.println("🚨 Something went wrong 🚨")
-    return '🚨'
+    return '!'
 }
 
+@(private="file")
 add_string :: proc(scanner: ^Scanner) {
     for peek(scanner) != '"' && !is_at_end(scanner) {
         advance(scanner)
@@ -145,6 +140,7 @@ add_string :: proc(scanner: ^Scanner) {
     })
 }
 
+@(private="file")
 add_number :: proc(scanner: ^Scanner) {
     for unicode.is_digit(peek(scanner)) {
         advance(scanner)
@@ -163,19 +159,17 @@ add_number :: proc(scanner: ^Scanner) {
 
         append(&scanner.tokens, Token {
             type = .Float,
-            // idk how to cast strings to numbers in Odin
-            // value = f32(scanner.source[scanner.start : scanner.current])
-            value = scanner.source[scanner.start : scanner.current]
+            value = scanner.source[scanner.start : scanner.current],
         })
     } else {
         append(&scanner.tokens, Token {
             type = .Int,
-            // value = int(scanner.source[scanner.start : scanner.current])
-            value = scanner.source[scanner.start : scanner.current]
+            value = scanner.source[scanner.start : scanner.current],
         })
     }
 }
 
+@(private="file")
 add_keyword :: proc(scanner: ^Scanner) {
     for unicode.is_alpha(peek(scanner)) {
         advance(scanner)
@@ -183,25 +177,27 @@ add_keyword :: proc(scanner: ^Scanner) {
 
     keyword := scanner.source[scanner.start : scanner.current]
     switch keyword {
-        case "true":
-            append(&scanner.tokens, Token {
-                type = .Boolean,
-                value = true,
-            })
-        case "false":
-            append(&scanner.tokens, Token {
-                type = .Boolean,
-                value = false,
-            })
-        case "null":
-            append(&scanner.tokens, Token {
-                type = .Null,
-            })
-        case:
-            fmt.println("Unexpected Token")
+    case "true":
+        append(&scanner.tokens, Token {
+            type = .Boolean,
+            value = "true",
+        })
+    case "false":
+        append(&scanner.tokens, Token {
+            type = .Boolean,
+            value = "false",
+        })
+    case "null":
+        append(&scanner.tokens, Token {
+            type = .Null,
+            value = "null",
+        })
+    case:
+        fmt.println("Unexpected Token")
     }
 }
 
+@(private="file")
 peek :: proc(scanner: ^Scanner) -> rune {
     if is_at_end(scanner) {
         return '!'
@@ -215,6 +211,7 @@ peek :: proc(scanner: ^Scanner) -> rune {
     return '!'
 }
 
+@(private="file")
 peek_next :: proc(scanner: ^Scanner) -> rune {
     if is_at_end(scanner) {
         return '!'
